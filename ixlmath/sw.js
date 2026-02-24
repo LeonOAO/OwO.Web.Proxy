@@ -10,10 +10,11 @@ if (navigator.userAgent.includes("Firefox")) {
 
 // --- Load Scramjet worker bundle safely (avoid /ixlmath/ixlmath/... ) ---
 // Use the service worker registration scope as the base URL.
-// This prevents path duplication when the SW is hosted under /ixlmath/. [1](https://vite.dev/guide/build)[2](https://blog.gitcode.com/4ff6b86cee6d7615f7e8fc5642f97aff.html)
-const SW_SCOPE = self.registration && self.registration.scope
-  ? self.registration.scope
-  : new URL("./", self.location.href).toString();
+// This prevents path duplication when the SW is hosted under /ixlmath/.
+const SW_SCOPE =
+  self.registration && self.registration.scope
+    ? self.registration.scope
+    : new URL("./", self.location.href).toString();
 
 // If your scramjet files are under: /OwO.Web.Proxy/ixlmath/scram/...
 // then the correct path relative to SW_SCOPE is: "scram/scramjet.all.js"
@@ -84,7 +85,7 @@ const CONFIG = {
     "*/promo/*",
     "*/affiliates/*",
     "*/partnerads/*",
-  ]
+  ],
 };
 
 /** @type {{ origin: string, html: string, css: string, js: string } | undefined} */
@@ -96,7 +97,7 @@ let playgroundData;
  * @returns {RegExp}
  */
 function toRegex(pattern) {
-  // IMPORTANT: This must be "\\$&" not "\\$&amp;" (HTML-escaped).
+  // IMPORTANT: must be "\\$&" (NOT "\\$&amp;" or "\\$&amp;amp;")
   const escaped = pattern
     .replace(/[.+?^${}()|[\]\\]/g, "\\$&")
     .replace(/\*\*/g, "{{DOUBLE_STAR}}")
@@ -112,12 +113,8 @@ function toRegex(pattern) {
  */
 function isBlocked(hostname, pathname) {
   return CONFIG.blocked.some((pattern) => {
-    if (pattern.startsWith("#")) {
-      pattern = pattern.substring(1);
-    }
-    if (pattern.startsWith("*")) {
-      pattern = pattern.substring(1);
-    }
+    if (pattern.startsWith("#")) pattern = pattern.substring(1);
+    if (pattern.startsWith("*")) pattern = pattern.substring(1);
 
     if (pattern.includes("/")) {
       const [hostPattern, ...pathParts] = pattern.split("/");
@@ -137,10 +134,19 @@ function isBlocked(hostname, pathname) {
  * @returns {Promise<Response>}
  */
 async function handleRequest(event) {
-  await scramjet.loadConfig();
+  await scramjet.loadConfig(); // loads config used by route/fetch [1](https://m365firstbank-my.sharepoint.com/personal/i18209_firstbank_com_tw/Documents/Microsoft%20Copilot%20Chat%20%E6%AA%94%E6%A1%88/scramjet.all.js)
 
-  if (scramjet.route(event)) {
-    const response = await scramjet.fetch(event);
+  const reqUrl = new URL(event.request.url);
+
+  // 🔎 Debug: this tells you if Scramjet thinks it should handle /go/ requests
+  const isGo = reqUrl.pathname.includes("/ixlmath/go/");
+  if (isGo) console.log("[SW] saw go request:", reqUrl.href);
+
+  const shouldRoute = scramjet.route(event); // route decision [1](https://m365firstbank-my.sharepoint.com/personal/i18209_firstbank_com_tw/Documents/Microsoft%20Copilot%20Chat%20%E6%AA%94%E6%A1%88/scramjet.all.js)
+  if (isGo) console.log("[SW] route(event) =", shouldRoute);
+
+  if (shouldRoute) {
+    const response = await scramjet.fetch(event); // proxy fetch path [1](https://m365firstbank-my.sharepoint.com/personal/i18209_firstbank_com_tw/Documents/Microsoft%20Copilot%20Chat%20%E6%AA%94%E6%A1%88/scramjet.all.js)
     const contentType = response.headers.get("content-type") || "";
 
     if (contentType.includes("text/html")) {
@@ -161,6 +167,7 @@ async function handleRequest(event) {
     return response;
   }
 
+  // fallback: normal network fetch
   return fetch(event.request);
 }
 
@@ -168,9 +175,7 @@ self.addEventListener("fetch", (event) => {
   const url = event.request.url;
 
   // Keep as-is: do not intercept supabase.
-  if (url.includes("supabase.co")) {
-    return;
-  }
+  if (url.includes("supabase.co")) return;
 
   event.respondWith(handleRequest(event));
 });
@@ -200,7 +205,7 @@ scramjet.addEventListener("request", (e) => {
       const headers = { "content-type": route.type };
       e.response = new Response(route.content, { headers });
 
-      // keep these custom fields as your original code expects
+      // custom fields your code expects
       e.response.rawHeaders = headers;
       e.response.rawResponse = {
         body: e.response.body,
