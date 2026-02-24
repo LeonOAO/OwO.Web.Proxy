@@ -16,70 +16,7 @@ importScripts(new URL('scram/scramjet.all.js', SW_SCOPE).toString());
 const { ScramjetServiceWorker } = $scramjetLoadWorker();
 const scramjet = new ScramjetServiceWorker();
 
-const CONFIG = {
-  blocked: [
-    'youtube.com/get_video_info?*adformat=*',
-    'youtube.com/api/stats/ads/*',
-    'youtube.com/pagead/*',
-    '.facebook.com/ads/*',
-    '.facebook.com/tr/*',
-    '.fbcdn.net/ads/*',
-    'graph.facebook.com/ads/*',
-    'ads-api.twitter.com/*',
-    'analytics.twitter.com/*',
-    '.twitter.com/i/ads/*',
-    '.ads.yahoo.com',
-    '.advertising.com',
-    '.adtechus.com',
-    '.oath.com',
-    '.verizonmedia.com',
-    '.amazon-adsystem.com',
-    'aax.amazon-adsystem.com/*',
-    'c.amazon-adsystem.com/*',
-    '.adnxs.com',
-    '.adnxs-simple.com',
-    'ab.adnxs.com/*',
-    '.rubiconproject.com',
-    '.magnite.com',
-    '.pubmatic.com',
-    'ads.pubmatic.com/*',
-    '.criteo.com',
-    'bidder.criteo.com/*',
-    'static.criteo.net/*',
-    '.openx.net',
-    '.openx.com',
-    '.indexexchange.com',
-    '.casalemedia.com',
-    '.adcolony.com',
-    '.chartboost.com',
-    '.unityads.unity3d.com',
-    '.inmobiweb.com',
-    '.tapjoy.com',
-    '.applovin.com',
-    '.vungle.com',
-    '.ironsrc.com',
-    '.fyber.com',
-    '.smaato.net',
-    '.supersoniads.com',
-    '.startappservice.com',
-    '.airpush.com',
-    '.outbrain.com',
-    '.taboola.com',
-    '.revcontent.com',
-    '.zedo.com',
-    '.mgid.com',
-    '*/ads/*',
-    '*/adserver/*',
-    '*/adclick/*',
-    '*/banner_ads/*',
-    '*/sponsored/*',
-    '*/promotions/*',
-    '*/tracking/ads/*',
-    '*/promo/*',
-    '*/affiliates/*',
-    '*/partnerads/*',
-  ]
-};
+const CONFIG = { blocked: [] };
 
 /** @type {{ origin: string, html: string, css: string, js: string } | undefined} */
 let playgroundData;
@@ -97,7 +34,7 @@ function toRegex(pattern) {
 }
 
 function isBlocked(hostname, pathname) {
-  return CONFIG.blocked.some((pattern) => {
+  return (CONFIG.blocked || []).some((pattern) => {
     if (pattern.startsWith('#')) pattern = pattern.substring(1);
     if (pattern.startsWith('*')) pattern = pattern.substring(1);
 
@@ -114,57 +51,84 @@ function isBlocked(hostname, pathname) {
   });
 }
 
-async function handleRequest(event) {
+async function scramjetFetchSafe(event) {
+  // Ensure config is loaded.
   await scramjet.loadConfig();
 
-  // Force prefix to the correct /go/ prefix derived from SW scope.
-  const expectedPrefix = new URL('./go/', SW_SCOPE).pathname;
-  if (scramjet.config) {
-    // Some builds may freeze config objects; reassign a cloned object to guarantee writability.
-    if (scramjet.config.prefix !== expectedPrefix) {
-      scramjet.config = { ...scramjet.config, prefix: expectedPrefix };
-    }
+  const expectedGoPrefix = new URL('./go/', SW_SCOPE).pathname;
+  const currentPrefix = scramjet.config && scramjet.config.prefix;
+  const reqUrl = new URL(event.request.url);
+
+  // If config prefix does NOT include /go/ but request path does, normalize the request URL
+  // so that Scramjet decodes just the encoded remote URL (no leading 'go/').
+  if (currentPrefix && !String(currentPrefix).endsWith('/go/') && reqUrl.pathname.startsWith(expectedGoPrefix)) {
+    const encodedPart = reqUrl.pathname.slice(expectedGoPrefix.length); // everything after /go/
+    const normalizedUrl = new URL(String(currentPrefix).replace(/\/+$/, '/') + encodedPart, self.location.origin).toString();
+    const normalizedReq = new Request(normalizedUrl, event.request);
+    return scramjet.fetch({ request: normalizedReq, clientId: event.clientId });
   }
 
+  // Otherwise, just use original request
+  return scramjet.fetch({ request: event.request, clientId: event.clientId });
+}
+
+async function handleRequest(event) {
   const reqUrl = new URL(event.request.url);
   const isGo = reqUrl.pathname.includes('/ixlmath/go/');
-  if (isGo) {
-    console.log('[SW] saw go request:', reqUrl.href);
-    console.log('[SW] expectedPrefix:', expectedPrefix);
-    console.log('[SW] activePrefix:', scramjet.config ? scramjet.config.prefix : '(no config)');
+  if (isGo) console.log('[SW] go url:', reqUrl.href);
+
+  // Do not intercept supabase.
+  if (reqUrl.href.includes('supabase.co')) {
+    return fetch(event.request);
   }
 
+  // Route check based on current config
+  await scramjet.loadConfig();
   const shouldRoute = scramjet.route(event);
-  if (isGo) console.log('[SW] route(event)=', shouldRoute);
+  if (isGo) {
+    console.log('[SW] config.prefix:', scramjet.config && scramjet.config.prefix);
+    console.log('[SW] route(event)=', shouldRoute);
+  }
 
   if (shouldRoute) {
-    const response = await scramjet.fetch(event);
-    const contentType = response.headers.get('content-type') || '';
+    try {
+      const response = await scramjetFetchSafe(event);
+      const contentType = response.headers.get('content-type') || '';
 
-    if (contentType.includes('text/html')) {
-      const originalText = await response.text();
-      const encoder = new TextEncoder();
-      const byteLength = encoder.encode(originalText).length;
+      if (contentType.includes('text/html')) {
+        const originalText = await response.text();
+        const encoder = new TextEncoder();
+        const byteLength = encoder.encode(originalText).length;
 
-      const newHeaders = new Headers(response.headers);
-      newHeaders.set('content-length', byteLength.toString());
+        const newHeaders = new Headers(response.headers);
+        newHeaders.set('content-length', byteLength.toString());
 
-      return new Response(originalText, {
-        status: response.status,
-        statusText: response.statusText,
-        headers: newHeaders,
-      });
+        return new Response(originalText, {
+          status: response.status,
+          statusText: response.statusText,
+          headers: newHeaders,
+        });
+      }
+
+      return response;
+    } catch (err) {
+      // Provide a clearer error response for debugging
+      return new Response(
+        JSON.stringify({
+          message: String(err && err.message ? err.message : err),
+          url: reqUrl.href,
+          configPrefix: scramjet.config && scramjet.config.prefix,
+          expectedGoPrefix: new URL('./go/', SW_SCOPE).pathname,
+        }, null, 2),
+        { status: 500, headers: { 'content-type': 'application/json' } }
+      );
     }
-
-    return response;
   }
 
   return fetch(event.request);
 }
 
 self.addEventListener('fetch', (event) => {
-  const url = event.request.url;
-  if (url.includes('supabase.co')) return;
   event.respondWith(handleRequest(event));
 });
 
@@ -188,11 +152,9 @@ scramjet.addEventListener('request', (e) => {
     };
 
     const route = routes[e.url.pathname];
-
     if (route) {
       const headers = { 'content-type': route.type };
       e.response = new Response(route.content, { headers });
-
       e.response.rawHeaders = headers;
       e.response.rawResponse = {
         body: e.response.body,
