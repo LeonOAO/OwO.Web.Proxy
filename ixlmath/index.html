@@ -8,7 +8,7 @@
   <!-- Option B: icons live in repo root, this page is /ixlmath/ so use ../ -->
   <link id="favicon" rel="icon" href="../favicon.png" type="image/x-icon" />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet" />
-  
+
   <script>
     window.dataLayer = window.dataLayer || [];
     function gtag(){ dataLayer.push(arguments); }
@@ -346,7 +346,7 @@
     }
 
     // ===== Service Worker registration (correct for /ixlmath/) =====
-    // Use ./sw.js and scope ./ so we don't accidentally request /ixlmath/ixlmath/sw.js [3](https://stackoverflow.com/questions/60452054/nextjs-deploy-to-a-specific-url-path)[4](https://www.youtube.com/watch?v=lEcULR30-GM)
+    // Must keep scope under the SW directory. [4](https://developers.google.com/tag-platform/gtagjs)[5](https://docs.github.com/pages)
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
         navigator.serviceWorker.register(assetUrl('sw.js'), { scope: assetPathname('./') })
@@ -397,13 +397,15 @@
     let activeTabId = null;
     let currentWisp = wispUrls.main;
 
-    // ===== BareMux + Scramjet paths (NOW CORRECT for /ixlmath/) =====
-    // IMPORTANT: remove the extra "ixlmath/" prefix; we are already inside /ixlmath/ [1](https://juejin.cn/post/6844903919487811598)[2](https://wallis.dev/blog/next-js-basepath-and-assetprefix)
+    // ===== BareMux + Scramjet paths (correct for /ixlmath/) =====
     const connection = new BareMux.BareMuxConnection(assetUrl('baremux/worker.js'));
 
     function initProxy() {
       connection.setTransport(assetUrl('libcurl/index.mjs'), [{ websocket: currentWisp }]);
     }
+
+    // ✅ IMPORTANT: prefix must be a pathname (NOT full URL) and must match SW routing. 
+    const PREFIX_PATH = new URL('./go/', window.location.href).pathname; // "/OwO.Web.Proxy/ixlmath/go/"
 
     const { ScramjetController } = $scramjetLoadController();
     const scramjet = new ScramjetController({
@@ -412,7 +414,7 @@
         wasm: assetUrl('scram/scramjet.wasm.wasm'),
         sync: assetUrl('scram/scramjet.sync.js')
       },
-      prefix: assetUrl('go/')
+      prefix: PREFIX_PATH
     });
 
     function loadWispSettings() {
@@ -574,7 +576,7 @@
       document.activeElement.blur();
       showBH();
 
-      let url = (val.includes('.') && !val.includes(' '))
+      const url = (val.includes('.') && !val.includes(' '))
         ? (val.startsWith('http') ? val : 'https://' + val)
         : `https://search.brave.com/search?q=${encodeURIComponent(val)}`;
 
@@ -582,11 +584,12 @@
       tab.url = url;
       tab.title = url.split('/')[2] || url;
 
+      // encodeUrl uses prefix + encoded href 
       let encoded = scramjet.encodeUrl(url);
 
-      // If encodeUrl returns a domain-root path like "/go/..." then rewrite to /ixlmath/go/...
+      // Ensure iframe gets an absolute URL when encodeUrl returns a pathname
       if (typeof encoded === 'string' && encoded.startsWith('/')) {
-        encoded = assetUrl(encoded);
+        encoded = new URL(encoded, window.location.origin).toString();
       }
 
       document.getElementById(`frame-${activeTabId}`).src = encoded;
@@ -611,11 +614,10 @@
       try {
         const path = frame.contentWindow.location.pathname;
 
-        const proxyPrefixPath = new URL(scramjet.prefix, window.location.origin).pathname;
-
-        if (path.includes(proxyPrefixPath)) {
-          const encodedPart = path.split(proxyPrefixPath)[1];
-          const decoded = scramjet.decodeUrl(encodedPart);
+        // PREFIX_PATH is pathname; match based on it 
+        if (path.includes(PREFIX_PATH)) {
+          const encodedPart = path.split(PREFIX_PATH)[1];
+          const decoded = scramjet.decodeUrl(window.location.origin + PREFIX_PATH + encodedPart);
 
           const tab = tabs.find(t => t.id === activeTabId);
           if (tab && tab.url !== decoded && document.activeElement !== document.getElementById('bar')) {
@@ -664,11 +666,15 @@
     function goForward() { try { document.getElementById(`frame-${activeTabId}`).contentWindow.history.forward(); } catch(e){} }
     function toggleFullScreen() { if (!document.fullscreenElement) document.documentElement.requestFullscreen(); else document.exitFullscreen(); }
 
-    window.onload = () => {
+    window.onload = async () => {
       updateCloakUI();
       loadWispSettings();
       initProxy();
+
+      // init then FORCE-SYNC prefix to SW config to ensure route(event) matches 
       scramjet.init();
+      await scramjet.modifyConfig({ prefix: PREFIX_PATH });
+
       createNewTab();
       refreshAllPings();
       setTimeout(hideBH, 1000);
