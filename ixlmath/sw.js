@@ -1,124 +1,109 @@
-/* sw.js (fixed for https://leonoao.github.io/OwO.Web.Proxy/ixlmath/sw.js) */
+/* sw.js (for https://leonoao.github.io/OwO.Web.Proxy/ixlmath/sw.js) */
 
 // Firefox only: spoof crossOriginIsolated
-if (navigator.userAgent.includes("Firefox")) {
-  Object.defineProperty(globalThis, "crossOriginIsolated", {
+if (navigator.userAgent.includes('Firefox')) {
+  Object.defineProperty(globalThis, 'crossOriginIsolated', {
     value: true,
     writable: false,
   });
 }
 
-// --- Load Scramjet worker bundle safely (avoid /ixlmath/ixlmath/... ) ---
 // Use the service worker registration scope as the base URL.
-// This prevents path duplication when the SW is hosted under /ixlmath/.
-const SW_SCOPE =
-  self.registration && self.registration.scope
-    ? self.registration.scope
-    : new URL("./", self.location.href).toString();
+const SW_SCOPE = (self.registration && self.registration.scope)
+  ? self.registration.scope
+  : new URL('./', self.location.href).toString();
 
-// If your scramjet files are under: /OwO.Web.Proxy/ixlmath/scram/...
-// then the correct path relative to SW_SCOPE is: "scram/scramjet.all.js"
-importScripts(new URL("scram/scramjet.all.js", SW_SCOPE).toString());
+// Load Scramjet worker bundle relative to the SW scope to avoid /ixlmath/ixlmath/... duplication.
+importScripts(new URL('scram/scramjet.all.js', SW_SCOPE).toString());
 
 const { ScramjetServiceWorker } = $scramjetLoadWorker();
 const scramjet = new ScramjetServiceWorker();
 
 const CONFIG = {
   blocked: [
-    "youtube.com/get_video_info?*adformat=*",
-    "youtube.com/api/stats/ads/*",
-    "youtube.com/pagead/*",
-    ".facebook.com/ads/*",
-    ".facebook.com/tr/*",
-    ".fbcdn.net/ads/*",
-    "graph.facebook.com/ads/*",
-    "ads-api.twitter.com/*",
-    "analytics.twitter.com/*",
-    ".twitter.com/i/ads/*",
-    ".ads.yahoo.com",
-    ".advertising.com",
-    ".adtechus.com",
-    ".oath.com",
-    ".verizonmedia.com",
-    ".amazon-adsystem.com",
-    "aax.amazon-adsystem.com/*",
-    "c.amazon-adsystem.com/*",
-    ".adnxs.com",
-    ".adnxs-simple.com",
-    "ab.adnxs.com/*",
-    ".rubiconproject.com",
-    ".magnite.com",
-    ".pubmatic.com",
-    "ads.pubmatic.com/*",
-    ".criteo.com",
-    "bidder.criteo.com/*",
-    "static.criteo.net/*",
-    ".openx.net",
-    ".openx.com",
-    ".indexexchange.com",
-    ".casalemedia.com",
-    ".adcolony.com",
-    ".chartboost.com",
-    ".unityads.unity3d.com",
-    ".inmobiweb.com",
-    ".tapjoy.com",
-    ".applovin.com",
-    ".vungle.com",
-    ".ironsrc.com",
-    ".fyber.com",
-    ".smaato.net",
-    ".supersoniads.com",
-    ".startappservice.com",
-    ".airpush.com",
-    ".outbrain.com",
-    ".taboola.com",
-    ".revcontent.com",
-    ".zedo.com",
-    ".mgid.com",
-    "*/ads/*",
-    "*/adserver/*",
-    "*/adclick/*",
-    "*/banner_ads/*",
-    "*/sponsored/*",
-    "*/promotions/*",
-    "*/tracking/ads/*",
-    "*/promo/*",
-    "*/affiliates/*",
-    "*/partnerads/*",
-  ],
+    'youtube.com/get_video_info?*adformat=*',
+    'youtube.com/api/stats/ads/*',
+    'youtube.com/pagead/*',
+    '.facebook.com/ads/*',
+    '.facebook.com/tr/*',
+    '.fbcdn.net/ads/*',
+    'graph.facebook.com/ads/*',
+    'ads-api.twitter.com/*',
+    'analytics.twitter.com/*',
+    '.twitter.com/i/ads/*',
+    '.ads.yahoo.com',
+    '.advertising.com',
+    '.adtechus.com',
+    '.oath.com',
+    '.verizonmedia.com',
+    '.amazon-adsystem.com',
+    'aax.amazon-adsystem.com/*',
+    'c.amazon-adsystem.com/*',
+    '.adnxs.com',
+    '.adnxs-simple.com',
+    'ab.adnxs.com/*',
+    '.rubiconproject.com',
+    '.magnite.com',
+    '.pubmatic.com',
+    'ads.pubmatic.com/*',
+    '.criteo.com',
+    'bidder.criteo.com/*',
+    'static.criteo.net/*',
+    '.openx.net',
+    '.openx.com',
+    '.indexexchange.com',
+    '.casalemedia.com',
+    '.adcolony.com',
+    '.chartboost.com',
+    '.unityads.unity3d.com',
+    '.inmobiweb.com',
+    '.tapjoy.com',
+    '.applovin.com',
+    '.vungle.com',
+    '.ironsrc.com',
+    '.fyber.com',
+    '.smaato.net',
+    '.supersoniads.com',
+    '.startappservice.com',
+    '.airpush.com',
+    '.outbrain.com',
+    '.taboola.com',
+    '.revcontent.com',
+    '.zedo.com',
+    '.mgid.com',
+    '*/ads/*',
+    '*/adserver/*',
+    '*/adclick/*',
+    '*/banner_ads/*',
+    '*/sponsored/*',
+    '*/promotions/*',
+    '*/tracking/ads/*',
+    '*/promo/*',
+    '*/affiliates/*',
+    '*/partnerads/*',
+  ]
 };
 
 /** @type {{ origin: string, html: string, css: string, js: string } | undefined} */
 let playgroundData;
 
-/**
- * Convert wildcard patterns to a RegExp.
- * @param {string} pattern
- * @returns {RegExp}
- */
 function toRegex(pattern) {
-  // IMPORTANT: must be "\\$&" (NOT "\\$&amp;" or "\\$&amp;amp;")
-  const escaped = pattern
-    .replace(/[.+?^${}()|[\]\\]/g, "\\$&")
-    .replace(/\*\*/g, "{{DOUBLE_STAR}}")
-    .replace(/\*/g, "[^/]*")
-    .replace(/{{DOUBLE_STAR}}/g, ".*");
+  const escaped = String(pattern)
+    .replace(/[.+?^${}()|[\]\]/g, '\$&')
+    .replace(/\*\*/g, '{{DOUBLE_STAR}}')
+    .replace(/\*/g, '[^/]*')
+    .replace(/{{DOUBLE_STAR}}/g, '.*');
   return new RegExp(`^${escaped}$`);
 }
 
-/**
- * @param {string} hostname
- * @param {string} pathname
- * @returns {boolean}
- */
 function isBlocked(hostname, pathname) {
   return CONFIG.blocked.some((pattern) => {
-    if (pattern.startsWith("#")) pattern = pattern.substring(1);
-    if (pattern.startsWith("*")) pattern = pattern.substring(1);
+    if (pattern.startsWith('#')) pattern = pattern.substring(1);
+    if (pattern.startsWith('*')) pattern = pattern.substring(1);
 
-    if (pattern.includes("/")) {
-      const [hostPattern, ...pathParts] = pattern.split("/");
-      const pathPattern = pathParts.join("/");
+    if (pattern.includes('/')) {
+      const [hostPattern, ...pathParts] = pattern.split('/');
+      const pathPattern = pathParts.join('/');
       const hostRegex = toRegex(hostPattern);
       const pathRegex = toRegex(`/${pathPattern}`);
       return hostRegex.test(hostname) && pathRegex.test(pathname);
@@ -129,33 +114,27 @@ function isBlocked(hostname, pathname) {
   });
 }
 
-/**
- * @param {FetchEvent} event
- * @returns {Promise<Response>}
- */
 async function handleRequest(event) {
-  await scramjet.loadConfig(); // loads config used by route/fetch [1](https://m365firstbank-my.sharepoint.com/personal/i18209_firstbank_com_tw/Documents/Microsoft%20Copilot%20Chat%20%E6%AA%94%E6%A1%88/scramjet.all.js)
+  await scramjet.loadConfig();
 
   const reqUrl = new URL(event.request.url);
+  const isGo = reqUrl.pathname.includes('/ixlmath/go/');
+  if (isGo) console.log('[SW] saw go request:', reqUrl.href);
 
-  // 🔎 Debug: this tells you if Scramjet thinks it should handle /go/ requests
-  const isGo = reqUrl.pathname.includes("/ixlmath/go/");
-  if (isGo) console.log("[SW] saw go request:", reqUrl.href);
-
-  const shouldRoute = scramjet.route(event); // route decision [1](https://m365firstbank-my.sharepoint.com/personal/i18209_firstbank_com_tw/Documents/Microsoft%20Copilot%20Chat%20%E6%AA%94%E6%A1%88/scramjet.all.js)
-  if (isGo) console.log("[SW] route(event) =", shouldRoute);
+  const shouldRoute = scramjet.route(event);
+  if (isGo) console.log('[SW] route(event)=', shouldRoute);
 
   if (shouldRoute) {
-    const response = await scramjet.fetch(event); // proxy fetch path [1](https://m365firstbank-my.sharepoint.com/personal/i18209_firstbank_com_tw/Documents/Microsoft%20Copilot%20Chat%20%E6%AA%94%E6%A1%88/scramjet.all.js)
-    const contentType = response.headers.get("content-type") || "";
+    const response = await scramjet.fetch(event);
+    const contentType = response.headers.get('content-type') || '';
 
-    if (contentType.includes("text/html")) {
+    if (contentType.includes('text/html')) {
       const originalText = await response.text();
       const encoder = new TextEncoder();
       const byteLength = encoder.encode(originalText).length;
 
       const newHeaders = new Headers(response.headers);
-      newHeaders.set("content-length", byteLength.toString());
+      newHeaders.set('content-length', byteLength.toString());
 
       return new Response(originalText, {
         status: response.status,
@@ -167,55 +146,50 @@ async function handleRequest(event) {
     return response;
   }
 
-  // fallback: normal network fetch
   return fetch(event.request);
 }
 
-self.addEventListener("fetch", (event) => {
+self.addEventListener('fetch', (event) => {
   const url = event.request.url;
-
-  // Keep as-is: do not intercept supabase.
-  if (url.includes("supabase.co")) return;
-
+  if (url.includes('supabase.co')) return;
   event.respondWith(handleRequest(event));
 });
 
-self.addEventListener("message", ({ data }) => {
-  if (data && data.type === "playgroundData") {
+self.addEventListener('message', ({ data }) => {
+  if (data && data.type === 'playgroundData') {
     playgroundData = data;
   }
 });
 
-scramjet.addEventListener("request", (e) => {
+scramjet.addEventListener('request', (e) => {
   if (isBlocked(e.url.hostname, e.url.pathname)) {
-    e.response = new Response("Site Blocked", { status: 403 });
+    e.response = new Response('Site Blocked', { status: 403 });
     return;
   }
 
   if (playgroundData && e.url.href.startsWith(playgroundData.origin)) {
     const routes = {
-      "/": { content: playgroundData.html, type: "text/html" },
-      "/style.css": { content: playgroundData.css, type: "text/css" },
-      "/script.js": { content: playgroundData.js, type: "application/javascript" },
+      '/': { content: playgroundData.html, type: 'text/html' },
+      '/style.css': { content: playgroundData.css, type: 'text/css' },
+      '/script.js': { content: playgroundData.js, type: 'application/javascript' },
     };
 
     const route = routes[e.url.pathname];
 
     if (route) {
-      const headers = { "content-type": route.type };
+      const headers = { 'content-type': route.type };
       e.response = new Response(route.content, { headers });
 
-      // custom fields your code expects
       e.response.rawHeaders = headers;
       e.response.rawResponse = {
         body: e.response.body,
-        headers: headers,
+        headers,
         status: e.response.status,
         statusText: e.response.statusText,
       };
       e.response.finalURL = e.url.toString();
     } else {
-      e.response = new Response("empty response", { headers: {} });
+      e.response = new Response('empty response', { headers: {} });
     }
   }
 });
