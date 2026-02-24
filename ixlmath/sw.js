@@ -1,3 +1,6 @@
+/* sw.js (fixed for https://leonoao.github.io/OwO.Web.Proxy/ixlmath/sw.js) */
+
+// Firefox only: spoof crossOriginIsolated
 if (navigator.userAgent.includes("Firefox")) {
   Object.defineProperty(globalThis, "crossOriginIsolated", {
     value: true,
@@ -5,9 +8,16 @@ if (navigator.userAgent.includes("Firefox")) {
   });
 }
 
-// blocklist by s16 and swium - blocklist by s16 and swium - blocklist by s16 and swium - blocklist by s16 and swium - blocklist by s16 and swium
+// --- Load Scramjet worker bundle safely (avoid /ixlmath/ixlmath/... ) ---
+// Use the service worker registration scope as the base URL.
+// This prevents path duplication when the SW is hosted under /ixlmath/. [1](https://vite.dev/guide/build)[2](https://blog.gitcode.com/4ff6b86cee6d7615f7e8fc5642f97aff.html)
+const SW_SCOPE = self.registration && self.registration.scope
+  ? self.registration.scope
+  : new URL("./", self.location.href).toString();
 
-importScripts("./ixlmath/scram/scramjet.all.js");
+// If your scramjet files are under: /OwO.Web.Proxy/ixlmath/scram/...
+// then the correct path relative to SW_SCOPE is: "scram/scramjet.all.js"
+importScripts(new URL("scram/scramjet.all.js", SW_SCOPE).toString());
 
 const { ScramjetServiceWorker } = $scramjetLoadWorker();
 const scramjet = new ScramjetServiceWorker();
@@ -81,10 +91,12 @@ const CONFIG = {
 let playgroundData;
 
 /**
+ * Convert wildcard patterns to a RegExp.
  * @param {string} pattern
  * @returns {RegExp}
  */
 function toRegex(pattern) {
+  // IMPORTANT: This must be "\\$&" not "\\$&amp;" (HTML-escaped).
   const escaped = pattern
     .replace(/[.+?^${}()|[\]\\]/g, "\\$&")
     .replace(/\*\*/g, "{{DOUBLE_STAR}}")
@@ -114,11 +126,11 @@ function isBlocked(hostname, pathname) {
       const pathRegex = toRegex(`/${pathPattern}`);
       return hostRegex.test(hostname) && pathRegex.test(pathname);
     }
+
     const hostRegex = toRegex(pattern);
     return hostRegex.test(hostname);
   });
 }
-
 
 /**
  * @param {FetchEvent} event
@@ -135,6 +147,7 @@ async function handleRequest(event) {
       const originalText = await response.text();
       const encoder = new TextEncoder();
       const byteLength = encoder.encode(originalText).length;
+
       const newHeaders = new Headers(response.headers);
       newHeaders.set("content-length", byteLength.toString());
 
@@ -154,6 +167,7 @@ async function handleRequest(event) {
 self.addEventListener("fetch", (event) => {
   const url = event.request.url;
 
+  // Keep as-is: do not intercept supabase.
   if (url.includes("supabase.co")) {
     return;
   }
@@ -162,7 +176,7 @@ self.addEventListener("fetch", (event) => {
 });
 
 self.addEventListener("message", ({ data }) => {
-  if (data.type === "playgroundData") {
+  if (data && data.type === "playgroundData") {
     playgroundData = data;
   }
 });
@@ -177,19 +191,16 @@ scramjet.addEventListener("request", (e) => {
     const routes = {
       "/": { content: playgroundData.html, type: "text/html" },
       "/style.css": { content: playgroundData.css, type: "text/css" },
-      "/script.js": {
-        content: playgroundData.js,
-        type: "application/javascript",
-      },
+      "/script.js": { content: playgroundData.js, type: "application/javascript" },
     };
 
     const route = routes[e.url.pathname];
 
     if (route) {
-      let content = route.content;
-
       const headers = { "content-type": route.type };
-      e.response = new Response(content, { headers });
+      e.response = new Response(route.content, { headers });
+
+      // keep these custom fields as your original code expects
       e.response.rawHeaders = headers;
       e.response.rawResponse = {
         body: e.response.body,
