@@ -1,4 +1,4 @@
-/* sw.js (for https://leonoao.github.io/OwO.Web.Proxy/ixlmath/sw.js) */
+/* sw.js (for https://leonoao.github.io/OwO.Web.Proxy/OwOy/sw.js) */
 
 if (navigator.userAgent.includes('Firefox')) {
   Object.defineProperty(globalThis, 'crossOriginIsolated', {
@@ -74,7 +74,7 @@ async function scramjetFetchSafe(event) {
 
 async function handleRequest(event) {
   const reqUrl = new URL(event.request.url);
-  const isGo = reqUrl.pathname.includes('/ixlmath/go/');
+  const isGo = reqUrl.pathname.includes('/OwOy/go/');
   if (isGo) console.log('[SW] go url:', reqUrl.href);
 
   // Do not intercept supabase.
