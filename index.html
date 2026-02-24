@@ -274,8 +274,8 @@
 
         const { ScramjetController } = $scramjetLoadController();
         const scramjet = new ScramjetController({
-            files: { all: "/ixlmath/scram/scramjet.all.js", wasm: "/ixlmath/scram/scramjet.wasm.wasm", sync: "/ixlmath/scram/scramjet.sync.js" },
-            prefix: "/ixlmath/go/" 
+            files: { all: "./ixlmath/scram/scramjet.all.js", wasm: "./ixlmath/scram/scramjet.wasm.wasm", sync: "./ixlmath/scram/scramjet.sync.js" },
+            prefix: "./ixlmath/go/" 
         });
 
         function loadWispSettings() {
@@ -499,6 +499,7 @@
     </script>
 </body>
 </html>
+
 
 
 
