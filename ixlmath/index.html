@@ -5,9 +5,10 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title id="page-title">Zyron</title>
 
-  <link id="favicon" rel="icon" href="favicon.png" type="image/x-icon" />
+  <!-- Option B: icons live in repo root, this page is /ixlmath/ so use ../ -->
+  <link id="favicon" rel="icon" href="../favicon.png" type="image/x-icon" />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet" />
-
+  
   <script>
     window.dataLayer = window.dataLayer || [];
     function gtag(){ dataLayer.push(arguments); }
@@ -15,7 +16,7 @@
     gtag('config', 'G-E9DZ1KWKQT');
   </script>
 
-  <!-- Core scripts -->
+  <!-- Core scripts (this file is /ixlmath/index.html so these are correct) -->
   <script src="./baremux/index.js"></script>
   <script src="./scram/scramjet.all.js"></script>
 
@@ -250,7 +251,7 @@
 
       <div class="nav-buttons">
         <div class="nav-button" onclick="showSettings()">
-          <img src="settingsicon.png" class="settings-icon-img" alt="Settings" />
+          <img src="../settingsicon.png" class="settings-icon-img" alt="Settings" />
         </div>
         <div class="nav-button" onclick="toggleFullScreen()">⛶</div>
       </div>
@@ -331,8 +332,7 @@
   </div>
 
   <script>
-    // ===== GitHub Pages-safe base URL helper =====
-    // This prevents "/ixlmath/..." from incorrectly resolving to the domain root. [1](https://blog.csdn.net/u011401390/article/details/148896400)[2](https://github.com/scramjetorg/framework-js)
+    // Base URL is /OwO.Web.Proxy/ixlmath/ because this file is in /ixlmath/
     const BASE_URL = new URL('./', window.location.href);
 
     function assetUrl(path) {
@@ -345,14 +345,11 @@
       return new URL(cleaned, BASE_URL).pathname;
     }
 
-    // ===== Service Worker registration (with scope + error logging) =====
-    // register() scope behavior is defined by the script URL location & rules. [3](https://cloud.tencent.com/developer/ask/sof/105812102)[4](https://github.com/IXLmath)
+    // ===== Service Worker registration (correct for /ixlmath/) =====
+    // Use ./sw.js and scope ./ so we don't accidentally request /ixlmath/ixlmath/sw.js [3](https://stackoverflow.com/questions/60452054/nextjs-deploy-to-a-specific-url-path)[4](https://www.youtube.com/watch?v=lEcULR30-GM)
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
-        const swScript = assetUrl('ixlmath/sw.js');
-        const swScope = assetPathname('ixlmath/');
-
-        navigator.serviceWorker.register(swScript, { scope: swScope })
+        navigator.serviceWorker.register(assetUrl('sw.js'), { scope: assetPathname('./') })
           .catch(err => console.error('SW register failed:', err));
       });
     }
@@ -369,7 +366,7 @@
         btn.classList.add('active-wisp');
       } else {
         document.title = 'Zyron';
-        document.getElementById('favicon').href = 'favicon.png';
+        document.getElementById('favicon').href = '../favicon.png';
         btn.innerText = 'Enable Tab Cloaking (Drive)';
         btn.classList.remove('active-wisp');
       }
@@ -400,22 +397,22 @@
     let activeTabId = null;
     let currentWisp = wispUrls.main;
 
-    // ===== BareMux paths fixed for GitHub Pages project subpath =====
-    // Avoid absolute "/ixlmath/..." which would go to domain root. [1](https://blog.csdn.net/u011401390/article/details/148896400)[2](https://github.com/scramjetorg/framework-js)
-    const connection = new BareMux.BareMuxConnection(assetUrl('ixlmath/baremux/worker.js'));
+    // ===== BareMux + Scramjet paths (NOW CORRECT for /ixlmath/) =====
+    // IMPORTANT: remove the extra "ixlmath/" prefix; we are already inside /ixlmath/ [1](https://juejin.cn/post/6844903919487811598)[2](https://wallis.dev/blog/next-js-basepath-and-assetprefix)
+    const connection = new BareMux.BareMuxConnection(assetUrl('baremux/worker.js'));
 
     function initProxy() {
-      connection.setTransport(assetUrl('ixlmath/libcurl/index.mjs'), [{ websocket: currentWisp }]);
+      connection.setTransport(assetUrl('libcurl/index.mjs'), [{ websocket: currentWisp }]);
     }
 
     const { ScramjetController } = $scramjetLoadController();
     const scramjet = new ScramjetController({
       files: {
-        all: assetUrl('ixlmath/scram/scramjet.all.js'),
-        wasm: assetUrl('ixlmath/scram/scramjet.wasm.wasm'),
-        sync: assetUrl('ixlmath/scram/scramjet.sync.js')
+        all: assetUrl('scram/scramjet.all.js'),
+        wasm: assetUrl('scram/scramjet.wasm.wasm'),
+        sync: assetUrl('scram/scramjet.sync.js')
       },
-      prefix: assetUrl('ixlmath/go/')
+      prefix: assetUrl('go/')
     });
 
     function loadWispSettings() {
@@ -587,14 +584,12 @@
 
       let encoded = scramjet.encodeUrl(url);
 
-      // If encodeUrl returns a domain-root path like "/ixlmath/go/...",
-      // rewrite to be relative to BASE_URL to avoid missing "/OwO.Web.Proxy/". [1](https://blog.csdn.net/u011401390/article/details/148896400)[2](https://github.com/scramjetorg/framework-js)
+      // If encodeUrl returns a domain-root path like "/go/..." then rewrite to /ixlmath/go/...
       if (typeof encoded === 'string' && encoded.startsWith('/')) {
         encoded = assetUrl(encoded);
       }
 
       document.getElementById(`frame-${activeTabId}`).src = encoded;
-
       document.getElementById('new-tab-ui').style.display = 'none';
       renderTabs();
     }
@@ -616,7 +611,6 @@
       try {
         const path = frame.contentWindow.location.pathname;
 
-        // Derive prefix path from scramjet.prefix so it works under "/OwO.Web.Proxy/". [1](https://blog.csdn.net/u011401390/article/details/148896400)[2](https://github.com/scramjetorg/framework-js)
         const proxyPrefixPath = new URL(scramjet.prefix, window.location.origin).pathname;
 
         if (path.includes(proxyPrefixPath)) {
