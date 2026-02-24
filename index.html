@@ -269,8 +269,8 @@
         let activeTabId = null;
         let currentWisp = wispUrls.main;
 
-        const connection = new BareMux.BareMuxConnection("/ixlmath/baremux/worker.js");
-        function initProxy() { connection.setTransport("/ixlmath/libcurl/index.mjs", [{ websocket: currentWisp }]); }
+        const connection = new BareMux.BareMuxConnection("./ixlmath/baremux/worker.js");
+        function initProxy() { connection.setTransport("./ixlmath/libcurl/index.mjs", [{ websocket: currentWisp }]); }
 
         const { ScramjetController } = $scramjetLoadController();
         const scramjet = new ScramjetController({
@@ -499,6 +499,7 @@
     </script>
 </body>
 </html>
+
 
 
 
