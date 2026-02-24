@@ -405,7 +405,7 @@
     }
 
     // ✅ IMPORTANT: prefix must be a pathname (NOT full URL) and must match SW routing. 
-    const PREFIX_PATH = new URL('./go/', window.location.href).pathname; // "/OwO.Web.Proxy/ixlmath/go/"
+    const PREFIX_PATH = new URL('./go/', window.location.href).pathname; // pathname, e.g. '/OwO.Web.Proxy/ixlmath/go/' // "/OwO.Web.Proxy/ixlmath/go/"
 
     const { ScramjetController } = $scramjetLoadController();
     const scramjet = new ScramjetController({
@@ -440,7 +440,13 @@
       document.querySelectorAll('.active-wisp').forEach(btn => btn.classList.remove('active-wisp'));
       if (document.getElementById(`wisp-${type}`)) document.getElementById(`wisp-${type}`).classList.add('active-wisp');
       initProxy();
-    }
+    
+      if ('serviceWorker' in navigator) {
+        try {
+          await navigator.serviceWorker.ready;
+        } catch (e) {}
+      }
+}
 
     function setCustomWisp() {
       const url = document.getElementById('custom-wisp-url').value.trim();
@@ -671,8 +677,14 @@
       loadWispSettings();
       initProxy();
 
-      // init then FORCE-SYNC prefix to SW config to ensure route(event) matches 
-      scramjet.init();
+      if ('serviceWorker' in navigator) {
+        try {
+          await navigator.serviceWorker.ready;
+        } catch (e) {}
+      }
+
+      // Initialize Scramjet (opens IDB) BEFORE modifying config
+      await scramjet.init();
       await scramjet.modifyConfig({ prefix: PREFIX_PATH });
 
       createNewTab();
