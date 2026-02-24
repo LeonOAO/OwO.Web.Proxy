@@ -440,13 +440,7 @@
       document.querySelectorAll('.active-wisp').forEach(btn => btn.classList.remove('active-wisp'));
       if (document.getElementById(`wisp-${type}`)) document.getElementById(`wisp-${type}`).classList.add('active-wisp');
       initProxy();
-    
-      if ('serviceWorker' in navigator) {
-        try {
-          await navigator.serviceWorker.ready;
-        } catch (e) {}
-      }
-}
+    }
 
     function setCustomWisp() {
       const url = document.getElementById('custom-wisp-url').value.trim();
