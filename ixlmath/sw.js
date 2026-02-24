@@ -117,18 +117,21 @@ function isBlocked(hostname, pathname) {
 async function handleRequest(event) {
   await scramjet.loadConfig();
 
-  // 🔧 Force prefix to include /go/ based on SW scope.
-  // This prevents decoding the remote URL as "go/<encoded>" which becomes an invalid URL.
+  // Force prefix to the correct /go/ prefix derived from SW scope.
   const expectedPrefix = new URL('./go/', SW_SCOPE).pathname;
-  if (scramjet.config && scramjet.config.prefix !== expectedPrefix) {
-    scramjet.config.prefix = expectedPrefix;
+  if (scramjet.config) {
+    // Some builds may freeze config objects; reassign a cloned object to guarantee writability.
+    if (scramjet.config.prefix !== expectedPrefix) {
+      scramjet.config = { ...scramjet.config, prefix: expectedPrefix };
+    }
   }
 
   const reqUrl = new URL(event.request.url);
   const isGo = reqUrl.pathname.includes('/ixlmath/go/');
   if (isGo) {
     console.log('[SW] saw go request:', reqUrl.href);
-    console.log('[SW] using prefix:', scramjet.config ? scramjet.config.prefix : '(no config)');
+    console.log('[SW] expectedPrefix:', expectedPrefix);
+    console.log('[SW] activePrefix:', scramjet.config ? scramjet.config.prefix : '(no config)');
   }
 
   const shouldRoute = scramjet.route(event);
