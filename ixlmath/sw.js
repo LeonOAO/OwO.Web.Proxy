@@ -7,7 +7,7 @@ if (navigator.userAgent.includes("Firefox")) {
 
 // blocklist by s16 and swium - blocklist by s16 and swium - blocklist by s16 and swium - blocklist by s16 and swium - blocklist by s16 and swium
 
-importScripts("/ixlmath/scram/scramjet.all.js");
+importScripts("./ixlmath/scram/scramjet.all.js");
 
 const { ScramjetServiceWorker } = $scramjetLoadWorker();
 const scramjet = new ScramjetServiceWorker();
