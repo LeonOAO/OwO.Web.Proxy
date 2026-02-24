@@ -1,6 +1,5 @@
 /* sw.js (for https://leonoao.github.io/OwO.Web.Proxy/ixlmath/sw.js) */
 
-// Firefox only: spoof crossOriginIsolated
 if (navigator.userAgent.includes('Firefox')) {
   Object.defineProperty(globalThis, 'crossOriginIsolated', {
     value: true,
@@ -8,12 +7,10 @@ if (navigator.userAgent.includes('Firefox')) {
   });
 }
 
-// Use the service worker registration scope as the base URL.
 const SW_SCOPE = (self.registration && self.registration.scope)
   ? self.registration.scope
   : new URL('./', self.location.href).toString();
 
-// Load Scramjet worker bundle relative to the SW scope to avoid /ixlmath/ixlmath/... duplication.
 importScripts(new URL('scram/scramjet.all.js', SW_SCOPE).toString());
 
 const { ScramjetServiceWorker } = $scramjetLoadWorker();
@@ -87,9 +84,12 @@ const CONFIG = {
 /** @type {{ origin: string, html: string, css: string, js: string } | undefined} */
 let playgroundData;
 
+function escapeRegex(s) {
+  return String(s).replace(/[\^$.*+?()[\]{}|]/g, '\$&');
+}
+
 function toRegex(pattern) {
-  const escaped = String(pattern)
-    .replace(/[.+?^${}()|[\]\]/g, '\$&')
+  const escaped = escapeRegex(pattern)
     .replace(/\*\*/g, '{{DOUBLE_STAR}}')
     .replace(/\*/g, '[^/]*')
     .replace(/{{DOUBLE_STAR}}/g, '.*');
