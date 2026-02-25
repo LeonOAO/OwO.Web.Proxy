@@ -1,4 +1,4 @@
-/* sw.js (for https://leonoao.github.io/OwO.Web.Proxy/ixlmath/sw.js) */
+/* sw.js (for https://leonoao.github.io/OwO.Web.Proxy/OwOy/sw.js) */
 
 if (navigator.userAgent.includes('Firefox')) {
   Object.defineProperty(globalThis, 'crossOriginIsolated', {
@@ -10,6 +10,7 @@ if (navigator.userAgent.includes('Firefox')) {
 const SW_SCOPE = (self.registration && self.registration.scope)
   ? self.registration.scope
   : new URL('./', self.location.href).toString();
+const GO_PREFIX = new URL('./go/', SW_SCOPE).pathname;
 
 importScripts(new URL('scram/scramjet.all.js', SW_SCOPE).toString());
 
@@ -55,7 +56,7 @@ async function scramjetFetchSafe(event) {
   // Ensure config is loaded.
   await scramjet.loadConfig();
 
-  const expectedGoPrefix = new URL('./go/', SW_SCOPE).pathname;
+  const expectedGoPrefix = GO_PREFIX;
   const currentPrefix = scramjet.config && scramjet.config.prefix;
   const reqUrl = new URL(event.request.url);
 
@@ -74,7 +75,7 @@ async function scramjetFetchSafe(event) {
 
 async function handleRequest(event) {
   const reqUrl = new URL(event.request.url);
-  const isGo = reqUrl.pathname.includes('/ixlmath/go/');
+  const isGo = reqUrl.pathname.startsWith(GO_PREFIX);
   if (isGo) console.log('[SW] go url:', reqUrl.href);
 
   // Do not intercept supabase.
