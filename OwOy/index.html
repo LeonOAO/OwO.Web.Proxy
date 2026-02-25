@@ -5,8 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title id="page-title">Zyron</title>
 
-  <!-- Option B: icons live in repo root, this page is /ixlmath/ so use ../ -->
-  <link id="favicon" rel="icon" href="../favicon.png" type="image/x-icon" />
+  <!-- Option B: icons live in repo root, this page is /OwOy/ so use ../ -->
+  <link id="favicon" rel="icon" href="./favicon.png" type="image/x-icon" />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet" />
 
   <script>
@@ -16,7 +16,7 @@
     gtag('config', 'G-E9DZ1KWKQT');
   </script>
 
-  <!-- Core scripts (this file is /ixlmath/index.html so these are correct) -->
+  <!-- Core scripts (this file is /OwOy/index.html so these are correct) -->
   <script src="./baremux/index.js"></script>
   <script src="./scram/scramjet.all.js"></script>
 
@@ -332,7 +332,7 @@
   </div>
 
   <script>
-    // Base URL is /OwO.Web.Proxy/ixlmath/ because this file is in /ixlmath/
+    // Base URL is /OwO.Web.Proxy/OwOy/ because this file is in /OwOy/
     const BASE_URL = new URL('./', window.location.href);
 
     function assetUrl(path) {
@@ -345,7 +345,7 @@
       return new URL(cleaned, BASE_URL).pathname;
     }
 
-    // ===== Service Worker registration (correct for /ixlmath/) =====
+    // ===== Service Worker registration (correct for /OwOy/) =====
     // Must keep scope under the SW directory. [4](https://developers.google.com/tag-platform/gtagjs)[5](https://docs.github.com/pages)
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
@@ -366,7 +366,7 @@
         btn.classList.add('active-wisp');
       } else {
         document.title = 'Zyron';
-        document.getElementById('favicon').href = '../favicon.png';
+        document.getElementById('favicon').href = './favicon.png';
         btn.innerText = 'Enable Tab Cloaking (Drive)';
         btn.classList.remove('active-wisp');
       }
@@ -397,7 +397,7 @@
     let activeTabId = null;
     let currentWisp = wispUrls.main;
 
-    // ===== BareMux + Scramjet paths (correct for /ixlmath/) =====
+    // ===== BareMux + Scramjet paths (correct for /OwOy/) =====
     const connection = new BareMux.BareMuxConnection(assetUrl('baremux/worker.js'));
 
     function initProxy() {
@@ -405,7 +405,7 @@
     }
 
     // ✅ IMPORTANT: prefix must be a pathname (NOT full URL) and must match SW routing. 
-    const PREFIX_PATH = new URL('./go/', window.location.href).pathname; // "/OwO.Web.Proxy/ixlmath/go/"
+    const PREFIX_PATH = new URL('./go/', window.location.href).pathname; // "/OwO.Web.Proxy/OwOy/go/"
 
     const { ScramjetController } = $scramjetLoadController();
     const scramjet = new ScramjetController({
